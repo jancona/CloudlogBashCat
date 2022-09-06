@@ -65,22 +65,13 @@ generateRequestXml() {
 while true; do
 	case $rigControlSoftware in
 		rigctld)
-			# Open FD 3 to rig control server ...
-			exec 3<>/dev/tcp/$host/$port
-
-			if [[ $? -ne 0 ]]; then
-				echo "Unable to contact server" >&2
-				exit 1
-			fi
-
 			# Get rigctld frequency, mode and bandwidth - accepts multiple commands
-			echo -e "fm" >&3
-			read -r -u3 rigFreq
-			read -r -u3 rigMode
-			read -r -u3 rigWidth
-
-			# Close FD 3
-			exec 3>&-
+			# rigctl returns the results on separate lines
+			# https://stackoverflow.com/a/32931403 describes how we read that
+			IFS=$'\n' read -r -d '' -a out < <( rigctl -r $host:$port -m 2 f m && printf '\0' )
+			rigFreq=${out[0]}
+			rigMode=${out[1]}
+			rigWidth=${out[2]}
 			;;
 
 		flrig)
@@ -103,8 +94,6 @@ while true; do
 			exit 1
 			;;
 	esac
-
-
 		
   if [ $rigFreq -ne $rigOldFreq  ] || [ "$rigMode" != "$rigOldMode"  ]; then
     # rig freq or mode changed, update Cloudlog
